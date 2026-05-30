@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Berry Blast — Smoothie Timer</title>
+<style>
+  :root{
+    --font-display: Georgia, "Times New Roman", "Hoefler Text", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, "Courier New", monospace;
+    --cream:#FBF1DD;
+    --ink:#1A120A;
+    --ink-soft:#463726;
+    --cranberry:#B41F31;
+    --avocado:#6E972F;
+    --blueberry:#34357F;
+    --banana:#E8B53A;
+    --smoothie-a:#7B3FA0;
+    --smoothie-b:#3E2570;
+    --carrot:#FF6A13;
+    --leaf:#0E6B3E;
+    --line:#E2CFA8;
+    --shadow:rgba(60,38,16,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font-body);
+    color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 85% -10%, rgba(244,200,75,.35), transparent 55%),
+      radial-gradient(110% 70% at -10% 110%, rgba(123,63,160,.20), transparent 55%),
+      var(--cream);
+    min-height:100dvh;overflow-x:hidden;
+  }
+  .wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:22px 18px 40px;}
+
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .brand{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,8.5vw,42px);line-height:.95;letter-spacing:-.02em;color:var(--ink)}
+  .brand em{font-style:italic;color:var(--cranberry)}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);text-align:right;white-space:nowrap}
+
+  .overall{height:7px;border-radius:99px;background:rgba(36,26,18,.12);overflow:hidden;margin:14px 0 0}
+  .overall i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--cranberry),var(--banana),var(--avocado),var(--blueberry));transition:width .4s ease}
+
+  .stage{
+    position:relative;margin:16px 0 8px;border-radius:26px;overflow:hidden;
+    background:
+      radial-gradient(80% 55% at 50% 8%, #fffdf6, transparent 70%),
+      linear-gradient(180deg,#FBF3E2 0%,#F0DFBE 62%,#E7D2A8 100%);
+    border:2px solid rgba(255,255,255,.7);
+    box-shadow:0 18px 40px -22px var(--shadow), inset 0 1px 0 rgba(255,255,255,.8);
+    aspect-ratio:1/.94;
+  }
+  .stage svg{display:block;width:100%;height:100%}
+  /* countertop reflection under cup */
+  .stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:26%;
+    background:linear-gradient(180deg, transparent, rgba(110,80,40,.10));pointer-events:none}
+
+  /* OVERLAY SCENES */
+  .scene{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;padding:5%}
+  .stage[data-type="order"] .scene-order{display:flex}
+  .stage[data-type="done"]  .scene-done{display:flex}
+
+  .phone{width:54%;max-width:215px;aspect-ratio:.5;background:#0c0c0e;border-radius:30px;padding:8px;box-shadow:0 22px 40px -18px rgba(20,12,4,.7);position:relative}
+  .screen{background:linear-gradient(180deg,#ffffff,#f6f4ef);border-radius:23px;height:100%;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .notch{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:34%;height:14px;background:#0c0c0e;border-radius:99px;z-index:3}
+  .statusbar{height:22px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;font-size:9px;font-weight:700;color:#222}
+  .apphead{padding:6px 12px 8px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:7px}
+  .ic-dot{width:18px;height:18px;border-radius:50%;background:var(--carrot);position:relative;flex:0 0 auto}
+  .ic-dot::after{content:"";position:absolute;left:6px;top:3px;width:3px;height:11px;background:#fff;border-radius:2px;transform:rotate(22deg)}
+  .apphead b{font-size:13px;color:var(--leaf);font-weight:800;letter-spacing:-.02em}
+  .rows{flex:1;overflow:hidden;padding:2px 0}
+  .row{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;color:#1a1a1a;padding:7px 12px;opacity:0;transform:translateX(10px);animation:rowIn .5s forwards}
+  .thumb{width:22px;height:22px;border-radius:6px;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}
+  .row .chk{margin-left:auto;width:18px;height:18px;border-radius:50%;border:2px solid #cdd3c8;display:grid;place-items:center;flex:0 0 auto;color:#fff;font-size:11px;background:#fff;transition:.3s}
+  .row.done .chk{background:var(--leaf);border-color:var(--leaf)}
+  .stage[data-type="order"] .row:nth-child(1){animation-delay:.15s}
+  .stage[data-type="order"] .row:nth-child(2){animation-delay:.8s}
+  .stage[data-type="order"] .row:nth-child(3){animation-delay:1.45s}
+  .stage[data-type="order"] .row:nth-child(4){animation-delay:2.1s}
+  .stage[data-type="order"] .row:nth-child(5){animation-delay:2.75s}
+  @keyframes rowIn{to{opacity:1;transform:translateX(0)}}
+  .checkout{margin:8px 12px 12px;background:var(--leaf);color:#fff;text-align:center;border-radius:12px;padding:9px;font-size:11px;font-weight:800;box-shadow:0 6px 12px -6px rgba(14,107,62,.7)}
+  .scene-order .cap,.scene-done .cap{margin-top:14px;font-family:var(--font-display);font-style:italic;font-size:16px;color:var(--ink-soft);text-align:center}
+
+  .confetti{position:absolute;width:9px;height:9px;border-radius:2px;top:46%;left:50%;animation:conf 1.6s ease-out forwards}
+  @keyframes conf{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--cx),var(--cy)) rotate(540deg);opacity:0}}
+
+  .now{margin-top:8px;text-align:center}
+  .recipe-name{display:inline-block;font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--ink);background:rgba(255,255,255,.7);border:1px solid var(--line);padding:5px 16px;border-radius:99px;margin-bottom:8px}
+  .step-no{font-family:var(--font-mono);font-weight:700;font-size:12px;letter-spacing:.1em;color:var(--cranberry);text-transform:uppercase}
+  .verb{font-family:var(--font-display);font-weight:700;font-size:clamp(23px,6.6vw,31px);line-height:1.05;margin:4px 0;letter-spacing:-.01em;color:var(--ink)}
+  .detail{font-size:14.5px;color:var(--ink-soft);max-width:34ch;margin:0 auto;min-height:40px}
+
+  .timer{font-family:var(--font-mono);font-weight:700;font-size:clamp(56px,18vw,86px);line-height:1;margin:8px 0 2px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .timer.low{color:var(--cranberry);animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+  .stepbar{height:13px;border-radius:99px;background:rgba(36,26,18,.12);overflow:hidden;margin:6px auto 0;max-width:340px;border:1px solid rgba(255,255,255,.6)}
+  .stepbar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--smoothie-a),var(--cranberry));transition:width 1s linear}
+
+  .controls{display:flex;gap:10px;justify-content:center;align-items:center;margin:18px 0 6px;flex-wrap:wrap}
+  button{font-family:var(--font-body);cursor:pointer;border:none;border-radius:99px;font-weight:700;transition:transform .12s ease, box-shadow .2s, background .2s}
+  button:active{transform:scale(.94)}
+  .btn-main{background:var(--ink);color:#fff;font-size:18px;padding:15px 30px;box-shadow:0 12px 24px -12px var(--shadow);display:flex;align-items:center;gap:9px}
+  .btn-main.run{background:var(--cranberry)}
+  .btn-ghost{background:#fff;border:2px solid rgba(36,26,18,.16);color:var(--ink);font-size:15px;padding:12px 16px}
+  .btn-ghost:hover{background:#faf6ec}
+
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:13px;color:var(--ink-soft)}
+  .speed{display:flex;gap:8px;align-items:center}
+  .speed b{font-weight:700;color:var(--ink);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .seg{display:flex;background:rgba(36,26,18,.08);border-radius:99px;padding:3px}
+  .seg button{background:transparent;color:var(--ink-soft);font-size:12px;font-weight:700;padding:6px 11px;border-radius:99px}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 2px 6px -2px var(--shadow)}
+  .mute{background:rgba(36,26,18,.08);width:40px;height:40px;border-radius:50%;font-size:16px;display:grid;place-items:center}
+
+  .list{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+  .item{display:flex;align-items:center;gap:12px;padding:11px 6px;border-bottom:1px solid var(--line);transition:.3s;cursor:pointer}
+  .item .dot{flex:0 0 auto;width:27px;height:27px;border-radius:50%;border:2px solid rgba(36,26,18,.22);display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--ink-soft);transition:.3s}
+  .item .lbl{flex:1;font-size:15px;font-weight:500}
+  .item .dur{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);opacity:.7}
+  .item.active{background:rgba(244,200,75,.2);border-radius:14px;border-bottom-color:transparent}
+  .item.active .dot{border-color:var(--cranberry);color:var(--cranberry);box-shadow:0 0 0 4px rgba(180,31,49,.12)}
+  .item.active .lbl{font-weight:700}
+  .item.done .dot{background:var(--avocado);border-color:var(--avocado);color:#fff}
+  .item.done .lbl{color:var(--ink-soft);text-decoration:line-through;text-decoration-color:rgba(36,26,18,.3)}
+
+  .footnote{text-align:center;font-size:11px;color:var(--ink-soft);opacity:.75;margin-top:18px;line-height:1.5}
+
+  /* animation triggers */
+  #blades{transform-box:fill-box;transform-origin:center}
+  .stage[data-type="blend"] #blades{animation:spin .1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #bladeBlur{opacity:0;transform-box:fill-box;transform-origin:center}
+  .stage[data-type="blend"] #bladeBlur{opacity:1;animation:spin .12s linear infinite}
+  .stage[data-type="blend"] #cupGroup{animation:shake .1s linear infinite}
+  @keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-1.5px,.7px)}75%{transform:translate(1.5px,-.7px)}}
+  #base{opacity:0;transition:opacity .4s}
+  .stage[data-type="blend"] #base,.stage[data-type="done"] #base{opacity:1}
+
+  .band{opacity:0;transform:translateY(18px);transition:opacity .6s ease, transform .6s cubic-bezier(.2,.9,.3,1.2)}
+  .band.filled{opacity:1;transform:translateY(0)}
+  #smoothie{opacity:0;transition:opacity .7s ease}
+  .stage[data-type="blend"] #smoothie,.stage[data-type="done"] #smoothie{opacity:1}
+  .stage[data-type="blend"] .band,.stage[data-type="done"] .band{opacity:0}
+  #swirl{transform-box:fill-box;transform-origin:center;animation:swirl 3s linear infinite}
+  @keyframes swirl{to{transform:rotate(360deg)}}
+  #foam circle{animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+
+  #washWater,#bubbles,#sponge{opacity:0;transition:opacity .3s}
+  .stage[data-type="wash"] #washWater,.stage[data-type="wash"] #bubbles{opacity:1}
+  #bubbles circle{animation:rise 2.6s ease-in infinite}
+  @keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:.9}100%{transform:translateY(-130px);opacity:0}}
+  .stage[data-type="wash"] #sponge{opacity:1;animation:wipe 1.7s ease-in-out infinite}
+  @keyframes wipe{0%,100%{transform:translateX(-26px) rotate(-7deg)}50%{transform:translateX(26px) rotate(7deg)}}
+
+  /* coconut milk carton pouring */
+  #pourGroup{opacity:0;transition:opacity .3s}
+  .stage[data-layer="coconut"] #pourGroup{opacity:1}
+  #milkStream{transform-box:fill-box;transform-origin:top center}
+  .stage[data-layer="coconut"] #milkStream{animation:flow .5s linear infinite}
+  @keyframes flow{0%{transform:translateY(-4px) scaleY(1)}100%{transform:translateY(3px) scaleY(1.05)}}
+  #milkPool{transform-box:fill-box;transform-origin:center}
+  .stage[data-layer="coconut"] #milkPool{animation:pool 1s ease-in-out infinite}
+  @keyframes pool{0%,100%{transform:scaleX(.82);opacity:.85}50%{transform:scaleX(1.18);opacity:1}}
+
+  .drop{animation:fall 1s cubic-bezier(.5,0,.85,1) forwards}
+  @keyframes fall{0%{opacity:0;transform:translateY(-12px) rotate(0)}12%{opacity:1}82%{opacity:1}100%{transform:translateY(var(--fy)) rotate(var(--fr,40deg));opacity:0}}
+
+  /* generic dish stage */
+  .stage[data-mode="generic"] #cupSvg{display:none}
+  .generic-stage{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:6%}
+  .stage[data-mode="generic"] .generic-stage{display:flex}
+  .g-plate{position:relative;width:46%;max-width:175px;aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle at 50% 36%, #ffffff, #efe2c6 68%, #e1cfa6);
+    box-shadow:inset 0 -9px 20px rgba(120,90,40,.2), 0 16px 30px -16px var(--shadow);display:grid;place-items:center}
+  .g-plate::after{content:"";position:absolute;inset:15%;border-radius:50%;border:2px dashed rgba(120,90,40,.16)}
+  .g-emoji{font-size:clamp(46px,15vw,74px);line-height:1;animation:gbob 2.8s ease-in-out infinite;filter:drop-shadow(0 7px 6px rgba(80,50,20,.28))}
+  @keyframes gbob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-9px) rotate(3deg)}}
+  .g-steam{position:absolute;top:6%;display:flex;gap:11px;z-index:2}
+  .g-steam span{width:5px;height:28px;border-radius:99px;background:linear-gradient(180deg,rgba(255,255,255,.9),transparent);animation:steam 2.5s ease-in infinite}
+  .g-steam span:nth-child(2){animation-delay:.6s}.g-steam span:nth-child(3){animation-delay:1.2s}
+  @keyframes steam{0%{opacity:0;transform:translateY(10px) scaleY(.6)}40%{opacity:.85}100%{opacity:0;transform:translateY(-22px) scaleY(1.3)}}
+  .g-step{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:#fff;box-shadow:0 8px 16px -8px var(--shadow);font-size:27px;animation:gpulse 1.7s ease-in-out infinite}
+  @keyframes gpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .g-name{font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--ink)}
+
+  /* weekly planner grid */
+  .planner{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+  .planner h2{font-family:var(--font-display);font-size:21px;margin:0 0 2px;color:var(--ink)}
+  .planner p{margin:0 0 14px;font-size:13px;color:var(--ink-soft)}
+  .grid{display:grid;grid-template-columns:34px repeat(5,1fr);gap:6px}
+  .ghead{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px;font-size:8.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.02em;padding-bottom:3px;text-align:center;line-height:1}
+  .ghead .gh-i{font-size:17px}
+  .glabel{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ink-soft)}
+  .meal{aspect-ratio:1;border-radius:14px;background:#fff;border:1.5px solid var(--line);font-size:23px;display:grid;place-items:center;box-shadow:0 3px 8px -5px var(--shadow);transition:transform .14s,border-color .14s,box-shadow .14s;padding:0}
+  .meal:hover{transform:translateY(-2px);border-color:var(--banana)}
+  .meal.sel{border-color:var(--cranberry);box-shadow:0 0 0 3px rgba(180,31,49,.18);background:#fff7ef}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><span class="logo-i"><span></span></span>RecipeTimer</div>
+    <div class="toggles">
+      <button class="tg" id="voiceBtn" title="Speak steps aloud">🗣️</button>
+      <button class="tg" id="muteBtn" title="Sound effects">🔊</button>
+    </div>
+  </header>
+  <div class="overall"><i id="overallBar"></i></div>
+
+  <div class="cockpit">
+  <div class="stage" id="stage" data-type="order" data-mode="smoothie">
+    <svg viewBox="0 0 400 400" id="cupSvg" aria-hidden="true">
+      <defs>
+        <clipPath id="cupInterior">
+          <path d="M122,110 L278,110 L254,326 C252,334 246,339 238,339 L162,339 C154,339 148,334 146,326 Z"/>
+        </clipPath>
+        <!-- glass -->
+        <linearGradient id="gGlassBody" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#ffffff" stop-opacity=".62"/>
+          <stop offset=".18" stop-color="#ffffff" stop-opacity=".10"/>
+          <stop offset=".5" stop-color="#cdbf9f" stop-opacity=".10"/>
+          <stop offset=".82" stop-color="#ffffff" stop-opacity=".10"/>
+          <stop offset="1" stop-color="#ffffff" stop-opacity=".5"/>
+        </linearGradient>
+        <!-- ingredients -->
+        <radialGradient id="gCran" cx=".35" cy=".3" r=".85">
+          <stop offset="0" stop-color="#E45064"/><stop offset=".55" stop-color="#B41F31"/><stop offset="1" stop-color="#7C0E1D"/>
+        </radialGradient>
+        <linearGradient id="gCoco" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#FBF4E4"/><stop offset="1" stop-color="#ECDFC6"/>
+        </linearGradient>
+        <radialGradient id="gAvo" cx=".4" cy=".3" r=".9">
+          <stop offset="0" stop-color="#B7D173"/><stop offset=".5" stop-color="#7FA646"/><stop offset="1" stop-color="#4E7029"/>
+        </radialGradient>
+        <radialGradient id="gBlue" cx=".35" cy=".3" r=".85">
+          <stop offset="0" stop-color="#6E6FC8"/><stop offset=".5" stop-color="#34357F"/><stop offset="1" stop-color="#1E1E52"/>
+        </radialGradient>
+        <linearGradient id="gBan" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#FBE793"/><stop offset=".55" stop-color="#EFC44E"/><stop offset="1" stop-color="#D69A2C"/>
+        </linearGradient>
+        <linearGradient id="gSmoothie" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8E55B8"/><stop offset=".5" stop-color="#6B3A99"/><stop offset="1" stop-color="#3A2466"/>
+        </linearGradient>
+        <linearGradient id="gMetal" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#7d7d88"/><stop offset=".5" stop-color="#e8e8f0"/><stop offset="1" stop-color="#6b6b76"/>
+        </linearGradient>
+        <radialGradient id="gRing" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#FFB169"/><stop offset="1" stop-color="#FF6A13" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="gBase" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3a2c20"/><stop offset="1" stop-color="#1b130c"/>
+        </linearGradient>
+        <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#3a2510" flood-opacity=".28"/>
+        </filter>
+        <filter id="blurMo"><feGaussianBlur stdDeviation="2.2"/></filter>
+        <radialGradient id="gShadow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#3a2510" stop-opacity=".42"/><stop offset="1" stop-color="#3a2510" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- contact shadow on counter -->
+      <ellipse cx="200" cy="350" rx="96" ry="17" fill="url(#gShadow)"/>
+
+      <!-- blender base -->
+      <g id="base">
+        <path d="M152,340 L248,340 L268,388 L132,388 Z" fill="url(#gBase)"/>
+        <rect x="124" y="380" width="152" height="16" rx="8" fill="#140d07"/>
+        <ellipse cx="200" cy="340" rx="48" ry="9" fill="#4a3829"/>
+        <circle cx="200" cy="364" r="15" fill="url(#gRing)"/>
+        <circle cx="200" cy="364" r="6" fill="#FFC089"/>
+      </g>
+
+      <g id="cupGroup" filter="url(#soft)">
+        <!-- glass back fill -->
+        <path d="M112,100 L288,100 L260,330 C258,340 250,346 240,346 L160,346 C150,346 142,340 140,330 Z" fill="#F3E9D2"/>
+
+        <!-- CONTENTS -->
+        <g clip-path="url(#cupInterior)">
+          <!-- cranberry layer -->
+          <g class="band" id="b_cranberry">
+            <rect x="110" y="309" width="180" height="38" fill="url(#gCran)"/>
+            <ellipse cx="200" cy="310" rx="84" ry="6" fill="#E45064" opacity=".7"/>
+            <g fill="#fff" opacity=".55"><circle cx="156" cy="322" r="2.4"/><circle cx="214" cy="330" r="2"/><circle cx="246" cy="318" r="2.4"/></g>
+          </g>
+          <!-- coconut layer -->
+          <g class="band" id="b_coconut">
+            <rect x="110" y="250" width="180" height="62" fill="url(#gCoco)"/>
+            <ellipse cx="200" cy="251" rx="84" ry="6" fill="#ffffff"/>
+            <ellipse cx="178" cy="270" rx="20" ry="6" fill="#fff" opacity=".7"/>
+          </g>
+          <!-- avocado layer -->
+          <g class="band" id="b_avocado">
+            <rect x="110" y="219" width="180" height="33" fill="url(#gAvo)"/>
+            <ellipse cx="200" cy="220" rx="84" ry="5" fill="#A9C76A" opacity=".8"/>
+          </g>
+          <!-- blueberry layer -->
+          <g class="band" id="b_blueberry">
+            <rect x="110" y="194" width="180" height="27" fill="url(#gBlue)"/>
+            <ellipse cx="200" cy="195" rx="84" ry="5" fill="#6E6FC8" opacity=".7"/>
+            <g fill="#9aa0d8" opacity=".4"><circle cx="170" cy="205" r="2"/><circle cx="222" cy="210" r="2.2"/></g>
+          </g>
+          <!-- banana layer -->
+          <g class="band" id="b_banana">
+            <rect x="110" y="168" width="180" height="28" fill="url(#gBan)"/>
+            <ellipse cx="200" cy="169" rx="84" ry="5" fill="#FBE793"/>
+          </g>
+
+          <!-- blended smoothie -->
+          <g id="smoothie">
+            <rect x="110" y="168" width="180" height="180" fill="url(#gSmoothie)"/>
+            <g id="swirl" opacity=".55">
+              <ellipse cx="186" cy="250" rx="62" ry="22" fill="#A86BD0" opacity=".45"/>
+              <ellipse cx="216" cy="284" rx="48" ry="16" fill="#2E1B57" opacity=".55"/>
+              <circle cx="168" cy="228" r="10" fill="#C99BE0" opacity=".5"/>
+              <circle cx="236" cy="246" r="7" fill="#fff" opacity=".22"/>
+            </g>
+            <ellipse cx="200" cy="170" rx="82" ry="8" fill="#A86BD0" opacity=".75"/>
+            <g id="foam" fill="#D9BEEC" opacity=".8">
+              <circle cx="172" cy="171" r="4"/><circle cx="192" cy="169" r="5"/><circle cx="214" cy="172" r="3.5"/><circle cx="232" cy="170" r="4"/>
+            </g>
+          </g>
+
+          <!-- wash water + bubbles -->
+          <g id="washWater"><rect x="110" y="312" width="180" height="34" fill="#CDE8F4" opacity=".75"/>
+            <ellipse cx="200" cy="313" rx="84" ry="5" fill="#EAF6FB"/></g>
+          <g id="bubbles" fill="#EAF6FB">
+            <circle cx="170" cy="318" r="7" opacity=".9"/><circle cx="206" cy="328" r="10" opacity=".85"/>
+            <circle cx="236" cy="314" r="6" opacity=".9"/><circle cx="150" cy="326" r="5" opacity=".85"/>
+            <circle cx="222" cy="322" r="8" opacity=".8"/><circle cx="186" cy="316" r="5" opacity=".9"/>
+          </g>
+        </g>
+
+        <!-- glass refraction + reflection -->
+        <path d="M112,100 L288,100 L260,330 C258,340 250,346 240,346 L160,346 C150,346 142,340 140,330 Z" fill="url(#gGlassBody)"/>
+        <!-- left specular streak -->
+        <path d="M132,116 C128,180 134,250 150,322 L160,322 C146,250 142,180 148,116 Z" fill="#fff" opacity=".5"/>
+        <!-- right soft streak -->
+        <path d="M266,120 C268,190 262,260 250,320 L256,320 C268,260 274,190 274,120 Z" fill="#fff" opacity=".22"/>
+        <!-- condensation droplets -->
+        <g fill="#ffffff" opacity=".35">
+          <circle cx="172" cy="200" r="3"/><circle cx="225" cy="240" r="2.4"/><circle cx="178" cy="270" r="2"/><circle cx="232" cy="290" r="2.6"/><circle cx="160" cy="160" r="2"/>
+        </g>
+        <!-- measurement marks -->
+        <g stroke="rgba(60,38,16,.32)" stroke-width="2" stroke-linecap="round">
+          <line x1="258" y1="150" x2="246" y2="150"/><line x1="262" y1="200" x2="244" y2="200"/>
+          <line x1="266" y1="250" x2="246" y2="250"/><line x1="270" y1="300" x2="250" y2="300"/>
+        </g>
+        <!-- rim / collar -->
+        <ellipse cx="200" cy="100" rx="88" ry="13" fill="#EFE3C6"/>
+        <ellipse cx="200" cy="100" rx="88" ry="13" fill="none" stroke="rgba(60,38,16,.28)" stroke-width="3"/>
+        <ellipse cx="200" cy="100" rx="74" ry="9" fill="#D9C9A4"/>
+        <ellipse cx="200" cy="99" rx="74" ry="8" fill="#1f160d" opacity=".12"/>
+
+        <!-- coconut milk carton pouring -->
+        <g id="pourGroup">
+          <path id="milkStream" d="M203,98 C201,124 207,140 205,162 L219,162 C217,140 222,124 220,98 Z" fill="#FBF6EA"/>
+          <ellipse id="milkPool" cx="211" cy="162" rx="16" ry="5" fill="#FBF6EA"/>
+          <g transform="translate(212 54) rotate(13)">
+            <rect x="-30" y="-30" width="60" height="62" rx="5" fill="#F4EDDE" stroke="#cdbf9f" stroke-width="2"/>
+            <path d="M-30,-30 L0,-50 L30,-30 Z" fill="#E8DDC6" stroke="#cdbf9f" stroke-width="2"/>
+            <line x1="0" y1="-50" x2="0" y2="-30" stroke="#cdbf9f" stroke-width="1.5"/>
+            <rect x="-9" y="28" width="18" height="9" rx="2" fill="#d7cba8"/>
+            <rect x="-23" y="-16" width="46" height="36" rx="3" fill="#fff"/>
+            <circle cx="0" cy="-3" r="9" fill="#dff0e4" stroke="#0E6B3E" stroke-width="1.5"/>
+            <text x="0" y="16" text-anchor="middle" font-size="7.5" fill="#0E6B3E" font-weight="bold" font-family="Helvetica, Arial, sans-serif">COCONUT MILK</text>
+          </g>
+        </g>
+
+        <!-- sponge (wash) -->
+        <g id="sponge" transform="translate(200 132)">
+          <rect x="-28" y="-13" width="56" height="26" rx="7" fill="#F2C84B"/>
+          <rect x="-28" y="-13" width="56" height="10" rx="5" fill="#79B05B"/>
+          <g fill="#fff" opacity=".5"><circle cx="-12" cy="4" r="2"/><circle cx="6" cy="2" r="2"/><circle cx="18" cy="6" r="1.6"/></g>
+        </g>
+
+        <!-- spinning blades (outer group = position, inner group = spin) -->
+        <g transform="translate(200 320)">
+          <g id="bladeBlur" filter="url(#blurMo)" opacity="0">
+            <ellipse cx="0" cy="0" rx="46" ry="11" fill="#cfd0da" opacity=".5"/>
+          </g>
+        </g>
+        <g transform="translate(200 320)">
+          <g id="blades">
+            <ellipse cx="0" cy="0" rx="44" ry="9" fill="url(#gMetal)"/>
+            <ellipse cx="0" cy="0" rx="44" ry="9" fill="url(#gMetal)" transform="rotate(60)"/>
+            <ellipse cx="0" cy="0" rx="44" ry="9" fill="url(#gMetal)" transform="rotate(120)"/>
+            <circle cx="0" cy="0" r="8" fill="#5f5f6a"/><circle cx="0" cy="0" r="3" fill="#2f2f36"/>
+          </g>
+        </g>
+      </g>
+
+      <g id="drops"></g>
+    </svg>
+
+    <!-- ORDER scene -->
+    <div class="scene scene-order">
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span>▮▮▮ 100%</span></div>
+          <div class="apphead"><span class="ic-dot"></span><b>instacart</b></div>
+          <div class="rows">
+            <div class="row"><span class="thumb" style="background:#B41F31"></span>Frozen cranberries<span class="chk">✓</span></div>
+            <div class="row"><span class="thumb" style="background:#FBF4E4"></span>Coconut milk<span class="chk">✓</span></div>
+            <div class="row"><span class="thumb" style="background:#7FA646"></span>Avocado<span class="chk">✓</span></div>
+            <div class="row"><span class="thumb" style="background:#34357F"></span>Wild blueberries<span class="chk">✓</span></div>
+            <div class="row"><span class="thumb" style="background:#EFC44E"></span>Bananas<span class="chk">✓</span></div>
+          </div>
+          <div class="checkout">Place order · Delivery in 1 hr</div>
+        </div>
+      </div>
+      <div class="cap">Adding everything to the cart…</div>
+    </div>
+
+    <!-- DONE scene -->
+    <div class="scene scene-done">
+      <svg viewBox="0 0 200 240" style="width:42%;max-width:170px">
+        <defs>
+          <linearGradient id="dGlass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity=".4"/>
+          </linearGradient>
+          <linearGradient id="dSm" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9A5CC2"/><stop offset="1" stop-color="#3A2466"/>
+          </linearGradient>
+        </defs>
+        <ellipse cx="100" cy="226" rx="56" ry="9" fill="#3a2510" opacity=".25"/>
+        <path d="M52,70 L148,70 L136,210 C135,218 129,222 122,222 L78,222 C71,222 65,218 64,210 Z" fill="#efe9dc"/>
+        <g clip-path="">
+          <path d="M56,90 L144,90 L135,208 C134,215 129,218 123,218 L77,218 C71,218 66,215 65,208 Z" fill="url(#dSm)"/>
+        </g>
+        <ellipse cx="100" cy="90" rx="44" ry="7" fill="#B884DC"/>
+        <g fill="#D9BEEC"><circle cx="78" cy="90" r="4"/><circle cx="100" cy="88" r="5"/><circle cx="122" cy="91" r="4"/></g>
+        <rect x="116" y="40" width="9" height="70" rx="4" fill="#E45064" transform="rotate(12 120 75)"/>
+        <circle cx="86" cy="84" r="6" fill="#34357F"/><circle cx="96" cy="80" r="5" fill="#34357F"/>
+        <path d="M52,70 L148,70 L136,210 C135,218 129,222 122,222 L78,222 C71,222 65,218 64,210 Z" fill="url(#dGlass)"/>
+      </svg>
+      <div class="cap">Silky smooth. Cheers!</div>
+    </div>
+
+    <!-- GENERIC dish stage (non-smoothie recipes) -->
+    <div class="generic-stage">
+      <div class="g-plate">
+        <div class="g-steam"><span></span><span></span><span></span></div>
+        <div class="g-emoji" id="gEmoji">🍝</div>
+      </div>
+      <div class="g-step" id="gIcon">🍳</div>
+      <div class="g-name" id="gName">Recipe</div>
+    </div>
+  </div>
+
+  <div class="now">
+    <div class="recipe-name" id="recipeName">🥤  Berry Blast Smoothie</div>
+    <div class="step-no" id="stepNo">Step 1 of 8</div>
+    <div class="verb" id="verb">Order the groceries</div>
+    <div class="detail" id="detail">Open Instacart and add everything to your cart.</div>
+    <div class="timer" id="timer">05:00</div>
+    <div class="stepbar"><i id="stepBar"></i></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-ghost" id="backBtn" title="Previous step">⏮</button>
+    <button class="btn-main" id="mainBtn">▶ Start</button>
+    <button class="btn-ghost" id="skipBtn" title="Skip step">Skip ⏭</button>
+  </div>
+
+  <div class="meta">
+    <div class="speed">
+      <b>Speed</b>
+      <div class="seg" id="speedSeg">
+        <button data-s="1" class="on">1×</button>
+        <button data-s="12">12×</button>
+        <button data-s="60">60×</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="mute" id="voiceBtn" title="Speak steps aloud">🗣️</button>
+      <button class="mute" id="muteBtn" title="Sound effects">🔊</button>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="planner">
+    <h2>Your week</h2>
+    <p>Tap any meal to load its 5-minute timer up top.</p>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="footnote">
+    Tip: real 5-minute timers total ~40 min. Bump the speed to watch it play through.<br>
+    Graphics are illustrated SVG animations, not real video footage.
+  </div>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+const RECIPES={
+  berryblast:{name:"Berry Blast Smoothie",emoji:"🥤",special:"smoothie",steps:[
+    {verb:"Order the groceries",detail:"Open Instacart and add everything to your cart.",type:"order"},
+    {verb:"Wash the NutriBullet",detail:"Rinse the cup, blade, and lid until squeaky clean.",type:"wash"},
+    {verb:"Add 20 frozen cranberries",detail:"Drop them straight in — no need to thaw.",type:"add",layer:"cranberry"},
+    {verb:"Pour ½ cup coconut milk",detail:"Give the can a shake first, then pour.",type:"add",layer:"coconut"},
+    {verb:"Add half an avocado",detail:"Scoop the flesh, skip the pit.",type:"add",layer:"avocado"},
+    {verb:"Add ½ cup wild blueberries",detail:"Tiny wild ones pack the most flavor.",type:"add",layer:"blueberry"},
+    {verb:"Add 1 banana",detail:"Peel it and break it in half.",type:"add",layer:"banana"},
+    {verb:"Blend",detail:"Lock the lid, run until perfectly silky.",type:"blend"},
+  ]},
+  avocadoToast:{name:"Avocado Toast",emoji:"🥑",steps:[
+    {verb:"Toast 2 slices of bread",detail:"Golden and crisp.",icon:"🍞"},
+    {verb:"Mash the avocado",detail:"With a pinch of salt.",icon:"🥑"},
+    {verb:"Squeeze in lemon",detail:"Keeps it bright and green.",icon:"🍋"},
+    {verb:"Spread onto the toast",detail:"Thick and even.",icon:"🔪"},
+    {verb:"Top with egg & chili flakes",detail:"Finish with cracked pepper.",icon:"🍳"},
+  ]},
+  oatmeal:{name:"Cozy Oatmeal",emoji:"🥣",steps:[
+    {verb:"Boil 1 cup of water",detail:"Add a pinch of salt.",icon:"💧"},
+    {verb:"Stir in ½ cup oats",detail:"Lower the heat.",icon:"🥣"},
+    {verb:"Simmer and stir",detail:"Until thick and creamy.",icon:"🥄"},
+    {verb:"Add banana & honey",detail:"Mash the banana right in.",icon:"🍌"},
+    {verb:"Sprinkle cinnamon",detail:"Serve warm.",icon:"✨"},
+  ]},
+  pancakes:{name:"Fluffy Pancakes",emoji:"🥞",steps:[
+    {verb:"Whisk the batter",detail:"Don't overmix — lumps are fine.",icon:"🥄"},
+    {verb:"Heat the griddle",detail:"Medium, lightly buttered.",icon:"🔥"},
+    {verb:"Pour the rounds",detail:"About ¼ cup each.",icon:"🥞"},
+    {verb:"Flip when bubbly",detail:"Edges should look set.",icon:"🔄"},
+    {verb:"Stack & add syrup",detail:"Pat of butter on top.",icon:"🍯"},
+  ]},
+  greekSalad:{name:"Greek Salad",emoji:"🥗",steps:[
+    {verb:"Chop cucumber & tomato",detail:"Big rustic chunks.",icon:"🔪"},
+    {verb:"Slice red onion",detail:"Thin half-moons.",icon:"🧅"},
+    {verb:"Add olives & feta",detail:"Generous crumbles.",icon:"🫒"},
+    {verb:"Drizzle olive oil",detail:"And a splash of red wine vinegar.",icon:"🫗"},
+    {verb:"Toss & season",detail:"Oregano, salt, pepper.",icon:"🥗"},
+  ]},
+  chickenWrap:{name:"Chicken Wrap",emoji:"🌯",steps:[
+    {verb:"Warm the tortilla",detail:"A few seconds per side.",icon:"🌯"},
+    {verb:"Add sliced chicken",detail:"Down the center.",icon:"🍗"},
+    {verb:"Pile on the greens",detail:"Lettuce and tomato.",icon:"🥬"},
+    {verb:"Spoon the sauce",detail:"Ranch or tzatziki.",icon:"🥫"},
+    {verb:"Roll & slice",detail:"Tuck the ends as you go.",icon:"🔪"},
+  ]},
+  tomatoSoup:{name:"Tomato Soup",emoji:"🍅",steps:[
+    {verb:"Heat the broth",detail:"With a knob of butter.",icon:"🔥"},
+    {verb:"Add the tomatoes",detail:"Crushed, with their juice.",icon:"🍅"},
+    {verb:"Simmer gently",detail:"Let the flavors meld.",icon:"🍲"},
+    {verb:"Blend until smooth",detail:"Careful — it's hot.",icon:"🌀"},
+    {verb:"Season & serve",detail:"Swirl in cream.",icon:"🧂"},
+  ]},
+  pasta:{name:"Garlic Butter Pasta",emoji:"🍝",steps:[
+    {verb:"Boil salted water",detail:"Tastes like the sea.",icon:"💧"},
+    {verb:"Cook the pasta",detail:"To al dente.",icon:"🍝"},
+    {verb:"Sizzle garlic in butter",detail:"Low heat, don't burn it.",icon:"🧄"},
+    {verb:"Toss it together",detail:"Add a splash of pasta water.",icon:"🥄"},
+    {verb:"Top with parmesan",detail:"And fresh parsley.",icon:"🧀"},
+  ]},
+  tacos:{name:"Street Tacos",emoji:"🌮",steps:[
+    {verb:"Cook the filling",detail:"Sear until browned.",icon:"🍳"},
+    {verb:"Warm the shells",detail:"Char them a little.",icon:"🌮"},
+    {verb:"Fill them up",detail:"Don't overstuff.",icon:"🥄"},
+    {verb:"Add salsa & lime",detail:"A good squeeze each.",icon:"🍋"},
+    {verb:"Garnish with cilantro",detail:"And diced onion.",icon:"🌿"},
+  ]},
+  stirFry:{name:"Veggie Stir-Fry",emoji:"🍜",steps:[
+    {verb:"Prep the veggies",detail:"Cut everything bite-size.",icon:"🔪"},
+    {verb:"Heat the wok",detail:"Screaming hot, then oil.",icon:"🔥"},
+    {verb:"Stir-fry fast",detail:"Keep it all moving.",icon:"🥢"},
+    {verb:"Pour the sauce",detail:"Soy, ginger, garlic.",icon:"🥫"},
+    {verb:"Serve over rice",detail:"Top with sesame seeds.",icon:"🍚"},
+  ]},
+  sushiBowl:{name:"Salmon Rice Bowl",emoji:"🍣",steps:[
+    {verb:"Cook the rice",detail:"Rinse it first.",icon:"🍚"},
+    {verb:"Slice the salmon",detail:"Sashimi-grade, thin.",icon:"🐟"},
+    {verb:"Add cucumber & avocado",detail:"Fan the avocado out.",icon:"🥒"},
+    {verb:"Drizzle soy & sesame oil",detail:"Sprinkle furikake.",icon:"🫗"},
+    {verb:"Top with seaweed",detail:"And pickled ginger.",icon:"🍙"},
+  ]},
+  fruitSnack:{name:"Fruit & Nut Butter",emoji:"🍎",steps:[
+    {verb:"Wash the apple",detail:"Pat it dry.",icon:"💧"},
+    {verb:"Slice into wedges",detail:"Core removed.",icon:"🔪"},
+    {verb:"Scoop nut butter",detail:"Almond or peanut.",icon:"🥜"},
+    {verb:"Plate it up",detail:"A little cinnamon on top.",icon:"🍎"},
+  ]},
+  trailMix:{name:"Trail Mix",emoji:"🥜",steps:[
+    {verb:"Measure the nuts",detail:"Almonds and cashews.",icon:"🥜"},
+    {verb:"Add the seeds",detail:"Pumpkin and sunflower.",icon:"🌻"},
+    {verb:"Toss in dried fruit",detail:"Cranberries and raisins.",icon:"🍇"},
+    {verb:"Add dark chocolate",detail:"Just a handful.",icon:"🍫"},
+    {verb:"Shake to mix",detail:"Seal it in a jar.",icon:"🫙"},
+  ]},
+  parfait:{name:"Yogurt Parfait",emoji:"🥛",steps:[
+    {verb:"Spoon in the yogurt",detail:"Greek, thick and cold.",icon:"🥄"},
+    {verb:"Layer the granola",detail:"For the crunch.",icon:"🥣"},
+    {verb:"Add fresh berries",detail:"Blueberries and strawberries.",icon:"🫐"},
+    {verb:"Drizzle honey",detail:"Repeat the layers.",icon:"🍯"},
+  ]},
+  hummus:{name:"Hummus & Veg",emoji:"🥕",steps:[
+    {verb:"Open the hummus",detail:"Swirl in a little olive oil.",icon:"🥫"},
+    {verb:"Slice the carrots",detail:"Into sticks.",icon:"🥕"},
+    {verb:"Slice the peppers",detail:"Thin strips.",icon:"🫑"},
+    {verb:"Arrange & dip",detail:"Sprinkle paprika on the hummus.",icon:"🍽️"},
+  ]},
+  brownie:{name:"Fudgy Brownies",emoji:"🍫",steps:[
+    {verb:"Melt butter & chocolate",detail:"Gently, stirring often.",icon:"🍫"},
+    {verb:"Whisk in sugar & eggs",detail:"Until glossy.",icon:"🥚"},
+    {verb:"Fold in the flour",detail:"Just until combined.",icon:"🥄"},
+    {verb:"Pour into the pan",detail:"Smooth the top.",icon:"🍫"},
+    {verb:"Bake, then cool",detail:"A toothpick should be fudgy.",icon:"⏲️"},
+  ]},
+  sundae:{name:"Ice Cream Sundae",emoji:"🍨",steps:[
+    {verb:"Scoop the ice cream",detail:"Two generous scoops.",icon:"🍨"},
+    {verb:"Pour the hot fudge",detail:"Let it drip down.",icon:"🍫"},
+    {verb:"Add the sprinkles",detail:"And a little whipped cream.",icon:"✨"},
+    {verb:"Crown with a cherry",detail:"Right on top.",icon:"🍒"},
+  ]},
+  cookies:{name:"Choc-Chip Cookies",emoji:"🍪",steps:[
+    {verb:"Cream butter & sugar",detail:"Light and fluffy.",icon:"🥄"},
+    {verb:"Mix in flour",detail:"With a little salt.",icon:"🌾"},
+    {verb:"Fold in chocolate chips",detail:"Be generous.",icon:"🍫"},
+    {verb:"Scoop onto the tray",detail:"Leave room to spread.",icon:"🥄"},
+    {verb:"Bake until golden",detail:"Edges set, centers soft.",icon:"⏲️"},
+  ]},
+};
+const MEALS=[["Breakfast","🌅"],["Lunch","🥪"],["Snack","🍎"],["Dinner","🍽️"],["Dessert","🍰"]];
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const PLAN=[
+  ["berryblast","greekSalad","fruitSnack","pasta","brownie"],
+  ["avocadoToast","chickenWrap","trailMix","tacos","sundae"],
+  ["oatmeal","tomatoSoup","parfait","stirFry","cookies"],
+  ["pancakes","greekSalad","hummus","sushiBowl","brownie"],
+  ["berryblast","chickenWrap","fruitSnack","pasta","sundae"],
+  ["avocadoToast","tomatoSoup","trailMix","tacos","cookies"],
+  ["oatmeal","sushiBowl","parfait","stirFry","brownie"],
+];
+let ACTIVE=RECIPES.berryblast;
+let STEPS=ACTIVE.steps;
+const DUR=300, ADD=["cranberry","coconut","avocado","blueberry","banana"];
+let idx=0,left=DUR,running=false,speed=1,finished=false,muted=false,ticker=null;
+const $=id=>document.getElementById(id), stage=$("stage");
+
+// ---- speech (browser built-in, repeats steps aloud) ----
+let voiceOn=true, chosenVoice=null;
+function pickVoice(){try{const vs=speechSynthesis.getVoices();
+  chosenVoice=vs.find(v=>/en[-_]US/i.test(v.lang)&&/samantha|google.*us|female|zira|aria/i.test(v.name))
+    ||vs.find(v=>/^en/i.test(v.lang))||vs[0]||null;}catch(e){}}
+if('speechSynthesis' in window){pickVoice();try{speechSynthesis.onvoiceschanged=pickVoice;}catch(e){}}
+function say(t){if(!voiceOn||!('speechSynthesis' in window))return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);
+    u.rate=.98;u.pitch=1;u.volume=1;if(chosenVoice)u.voice=chosenVoice;speechSynthesis.speak(u);}catch(e){}}
+function sayCurrent(){say(finished?("Enjoy your "+ACTIVE.name):
+  STEPS[idx].verb.replace(/½/g,"half a").replace(/NutriBullet/g,"nutri bullet"));}
+function stopSpeech(){try{speechSynthesis.cancel();}catch(e){}}
+
+const list=$("list");
+function buildList(){list.innerHTML="";STEPS.forEach((s,i)=>{const el=document.createElement("div");el.className="item";el.dataset.i=i;
+  el.innerHTML=`<span class="dot">${i+1}</span><span class="lbl">${s.verb}</span><span class="dur">5:00</span>`;
+  el.onclick=()=>jumpTo(i);list.appendChild(el);});}
+buildList();
+
+const fmt=s=>{s=Math.max(0,Math.ceil(s));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");};
+
+function render(){
+  const r=ACTIVE, s=STEPS[idx];
+  stage.dataset.mode = r.special==="smoothie" ? "smoothie" : "generic";
+  if(r.special==="smoothie"){
+    stage.dataset.type=finished?"done":s.type;
+    stage.dataset.layer=(!finished&&s.type==="add")?s.layer:"";
+    ADD.forEach(layer=>{const si=STEPS.findIndex(x=>x.layer===layer);const el=$("b_"+layer);
+      if(el)el.classList.toggle("filled",!finished&&stage.dataset.type!=="blend"&&si>=0&&idx>=si);});
+  }else{
+    stage.dataset.type="generic";stage.dataset.layer="";
+    $("gEmoji").textContent=r.emoji;
+    $("gIcon").textContent=finished?"✅":(s.icon||"🍳");
+    $("gName").textContent=r.name;
+  }
+  $("recipeName").textContent=r.emoji+"  "+r.name;
+  $("stepNo").textContent=finished?"All done!":`Step ${idx+1} of ${STEPS.length}`;
+  $("verb").textContent=finished?"Enjoy!":s.verb;
+  $("detail").textContent=finished?("Your "+r.name+" is ready."):s.detail;
+  $("timer").textContent=finished?"00:00":fmt(left);
+  $("timer").classList.toggle("low",!finished&&left<=10&&running);
+  $("stepBar").style.width=(finished?100:((DUR-left)/DUR)*100)+"%";
+  $("overallBar").style.width=(finished?100:((idx*DUR+(DUR-left))/(STEPS.length*DUR))*100)+"%";
+  const mb=$("mainBtn");
+  if(finished){mb.textContent="↺ Start over";mb.classList.remove("run");}
+  else if(running){mb.textContent="⏸ Pause";mb.classList.add("run");}
+  else{mb.textContent=left<DUR?"▶ Resume":"▶ Start";mb.classList.remove("run");}
+  [...list.children].forEach((el,i)=>{el.classList.toggle("active",!finished&&i===idx);
+    el.classList.toggle("done",finished||i<idx);
+    el.querySelector(".dot").textContent=(finished||i<idx)?"✓":(i+1);});
+}
+
+function svg(tag,a){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function makeShape(layer){
+  const g=svg("g",{});
+  if(layer==="cranberry"){
+    g.appendChild(svg("circle",{cx:0,cy:0,r:7,fill:"url(#gCran)"}));
+    g.appendChild(svg("ellipse",{cx:-2.4,cy:-2.6,rx:2.6,ry:1.7,fill:"#fff","opacity":.6}));
+  }else if(layer==="coconut"){
+    g.appendChild(svg("path",{d:"M0,-8 C5,-2 5,3 0,8 C-5,3 -5,-2 0,-8 Z",fill:"url(#gCoco)"}));
+    g.appendChild(svg("ellipse",{cx:-1.6,cy:-1,rx:1.8,ry:3,fill:"#fff","opacity":.7}));
+  }else if(layer==="avocado"){
+    g.appendChild(svg("path",{d:"M-15,-2 C-15,-13 15,-13 15,-2 C15,11 -15,11 -15,-2 Z",fill:"url(#gAvo)"}));
+    g.appendChild(svg("ellipse",{cx:0,cy:0,rx:8,ry:6,fill:"#C7DD8E","opacity":.7}));
+    g.appendChild(svg("ellipse",{cx:-5,cy:-4,rx:3,ry:2,fill:"#fff","opacity":.4}));
+  }else if(layer==="blueberry"){
+    g.appendChild(svg("circle",{cx:0,cy:0,r:7,fill:"url(#gBlue)"}));
+    g.appendChild(svg("ellipse",{cx:-2.4,cy:-2.6,rx:2.4,ry:1.6,fill:"#9aa0e0","opacity":.7}));
+    // calyx
+    g.appendChild(svg("path",{d:"M0,-2 L1.6,1 L4,1 L2,2.6 L2.6,5 L0,3.4 L-2.6,5 L-2,2.6 L-4,1 L-1.6,1 Z",fill:"#1a1a3e","opacity":.8,transform:"scale(.9)"}));
+  }else if(layer==="banana"){
+    g.appendChild(svg("path",{d:"M-15,5 C-21,-8 -7,-17 10,-15 C14,-14.5 15,-12 13.5,-10 C4,-12 -7,-6 -10,5 C-12,10 -13,10 -15,5 Z",fill:"url(#gBan)",stroke:"#c98f28","stroke-width":"1"}));
+    g.appendChild(svg("path",{d:"M-13,3 C-18,-7 -6,-14 9,-12.5",fill:"none",stroke:"#fff","stroke-width":"1.4","opacity":".5"}));
+    g.appendChild(svg("ellipse",{cx:12,cy:-12,rx:2.4,ry:1.8,fill:"#5a4218"}));
+    g.appendChild(svg("ellipse",{cx:-14,cy:6,rx:2,ry:1.6,fill:"#5a4218"}));
+  }
+  return g;
+}
+function spawnDrops(step){
+  const g=$("drops");g.innerHTML="";
+  if(step.type!=="add"||step.layer==="coconut")return;
+  const targetY={cranberry:312,avocado:236,blueberry:206,banana:182}[step.layer];
+  const n={cranberry:8,avocado:1,blueberry:8,banana:2}[step.layer];
+  for(let k=0;k<n;k++){
+    const x=168+Math.random()*64, startY=64+Math.random()*16;
+    const node=makeShape(step.layer);
+    node.setAttribute("transform",`translate(${x} ${startY})`);
+    node.classList.add("drop");
+    node.style.setProperty("--fy",(targetY-startY)+"px");
+    node.style.setProperty("--fr",(Math.random()*120-60)+"deg");
+    node.style.animationDelay=(k*0.11)+"s";
+    g.appendChild(node);
+    setTimeout(()=>node.remove(),1200+k*120);
+  }
+}
+
+let actx=null;
+function beep(f=660,d=.18,t="sine",v=.15){if(muted)return;try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();
+  const o=actx.createOscillator(),g=actx.createGain();o.type=t;o.frequency.value=f;o.connect(g);g.connect(actx.destination);
+  g.gain.setValueAtTime(v,actx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+d);o.start();o.stop(actx.currentTime+d);}catch(e){}}
+function chime(){beep(720,.16,"sine",.16);setTimeout(()=>beep(960,.22,"sine",.14),120);}
+function onEnter(){spawnDrops(STEPS[idx]);sayCurrent();const t=STEPS[idx].type;if(t==="add")beep(420,.12,"triangle",.1);else if(t==="blend")beep(140,.5,"sawtooth",.08);else if(ACTIVE.special!=="smoothie")beep(560,.1,"sine",.07);}
+
+function tick(){if(!running)return;left-=speed;
+  if(left<=0){chime();
+    if(idx>=STEPS.length-1){finished=true;running=false;clearInterval(ticker);ticker=null;render();celebrate();return;}
+    idx++;left=DUR;render();onEnter();
+  }else render();}
+function startTimer(){if(ticker)clearInterval(ticker);ticker=setInterval(tick,1000);}
+function play(){if(finished){resetAll();return;}running=!running;
+  if(running){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();actx.resume();}catch(e){}try{speechSynthesis.resume();}catch(e){}startTimer();if(left===DUR)onEnter();else sayCurrent();}
+  else{clearInterval(ticker);ticker=null;stopSpeech();}render();}
+function skip(){if(finished)return;chime();
+  if(idx>=STEPS.length-1){finished=true;running=false;clearInterval(ticker);ticker=null;render();celebrate();return;}
+  idx++;left=DUR;render();onEnter();}
+function back(){finished=false;if(left>=DUR-1&&idx>0)idx--;left=DUR;render();onEnter();}
+function jumpTo(i){finished=false;idx=i;left=DUR;render();onEnter();}
+function resetAll(){finished=false;running=false;idx=0;left=DUR;if(ticker){clearInterval(ticker);ticker=null;}stopSpeech();$("drops").innerHTML="";render();}
+
+function celebrate(){chime();sayCurrent();setTimeout(()=>beep(1180,.3,"sine",.12),260);
+  const sc=document.querySelector(".scene-done"),cols=["#B41F31","#EFC44E","#7FA646","#34357F","#7B3FA0"];
+  for(let i=0;i<28;i++){const c=document.createElement("span");c.className="confetti";c.style.background=cols[i%cols.length];
+    const a=Math.random()*6.28,d=70+Math.random()*95;c.style.setProperty("--cx",Math.cos(a)*d+"px");c.style.setProperty("--cy",Math.sin(a)*d-40+"px");
+    c.style.animationDelay=(Math.random()*.3)+"s";sc.appendChild(c);setTimeout(()=>c.remove(),1900);}}
+
+$("mainBtn").onclick=play;$("skipBtn").onclick=skip;$("backBtn").onclick=back;
+$("speedSeg").addEventListener("click",e=>{const b=e.target.closest("button[data-s]");if(!b)return;speed=+b.dataset.s;
+  [...$("speedSeg").children].forEach(x=>x.classList.toggle("on",x===b));});
+$("muteBtn").onclick=()=>{muted=!muted;$("muteBtn").textContent=muted?"🔇":"🔊";$("muteBtn").style.opacity=muted?.5:1;};
+$("voiceBtn").onclick=()=>{voiceOn=!voiceOn;$("voiceBtn").style.opacity=voiceOn?1:.4;
+  if(voiceOn){try{speechSynthesis.resume();}catch(e){}sayCurrent();}else stopSpeech();};
+// repeat the current step aloud, over and over, while running
+setInterval(()=>{if(running&&!finished&&voiceOn)sayCurrent();},14000);
+
+// ---- meal planner grid ----
+function loadRecipe(id,cell){
+  ACTIVE=RECIPES[id];STEPS=ACTIVE.steps;buildList();resetAll();
+  document.querySelectorAll(".meal.sel").forEach(m=>m.classList.remove("sel"));
+  if(cell)cell.classList.add("sel");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function buildGrid(){
+  const grid=$("grid");grid.innerHTML="";
+  grid.appendChild(Object.assign(document.createElement("div"),{className:"gcell corner"}));
+  MEALS.forEach(([name,ic])=>{const h=document.createElement("div");h.className="gcell ghead";
+    h.innerHTML=`<span class="gh-i">${ic}</span>${name}`;grid.appendChild(h);});
+  PLAN.forEach((day,di)=>{
+    const lab=document.createElement("div");lab.className="gcell glabel";lab.textContent=DAYS[di];grid.appendChild(lab);
+    day.forEach(id=>{const r=RECIPES[id];const b=document.createElement("button");
+      b.className="meal";b.title=r.name;b.dataset.r=id;b.textContent=r.emoji;
+      b.onclick=()=>loadRecipe(id,b);grid.appendChild(b);});
+  });
+}
+buildGrid();
+// preselect the first Berry Blast cell
+const firstSel=document.querySelector('.meal[data-r="berryblast"]');
+if(firstSel)firstSel.classList.add("sel");
+render();
+</script>
+</body>
+</html>
